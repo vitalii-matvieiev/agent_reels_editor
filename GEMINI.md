@@ -9,6 +9,21 @@ will not crop it.
 before editing any video — it defines the stages, the questions to ask, and the
 rules you must not break.**
 
+## Перший запуск — постав усе сам
+
+Людина перед тобою могла ніколи не відкривати термінал. **Вона нічого не
+набирає руками.** Привітайся, тоді перевір готовність:
+
+```bash
+python3 setup.py --check
+```
+
+Якщо не `ready` — став, нічого не питаючи: `python3 setup.py`, далі
+`./install.sh`. Установка не потребує пароля і не чіпає систему — усе лягає
+в папку плагіна. Пояснюй кроки простою мовою, не показуй сирих помилок.
+
+Повний сценарій першого запуску — у [`CLAUDE.md`](CLAUDE.md).
+
 ## Quick orientation
 
 | Stage | Script |

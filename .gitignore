@@ -6,3 +6,8 @@ profiles/user.json
 *.wav
 *.ass
 .DS_Store
+
+# Створюється при встановленні
+.venv/
+vendor/
+config.json

@@ -54,82 +54,59 @@
 
 ## Встановлення
 
-### Крок 1. Завантаж плагін
+**Термінал відкривати не треба.** Усе робить сам агент.
 
-Завантаж архів **`matvieiev-agent_reels-editor.zip`** зі сторінки:
+### 1. Постав Claude Code
+
+Завантаж з [claude.com/code](https://claude.com/code), встанови як звичайну
+програму, увійди в акаунт. Потрібна підписка — приблизно $20/міс.
+
+Плагін також працює в OpenAI Codex і Google Antigravity.
+
+### 2. Завантаж і розпакуй плагін
+
+Архів `matvieiev-agent_reels-editor.zip` — зі сторінки:
 
 <https://www.matvieiev.com/agents/reels-editor>
 
-Розпакуй його там, де тобі зручно:
+Двічі клікни по завантаженому файлу, він розпакується сам.
+
+### 3. Відкрий папку в Claude Code і напиши «привіт»
+
+Далі агент зробить усе сам:
+
+- перевірить, чого бракує на машині
+- поставить, що потрібно — **без пароля, не чіпаючи систему**
+- зареєструє себе як навичку, щоб працювати з будь-якої папки
+- запитає про твій стиль: кольори, шрифт, темп
+
+Усе, що ставиться, лягає всередину папки плагіна. Видалиш папку — не лишиться
+нічого.
+
+### Якщо ставиш вручну
 
 ```bash
-unzip matvieiev-agent_reels-editor.zip
-cd matvieiev-agent_reels-editor
+python3 setup.py     # ffmpeg, Python, залежності
+./install.sh         # зареєструвати навичку
 ```
 
-### Крок 2. Запусти інсталятор
-
-```bash
-./install.sh
-```
-
-Він сам визначить, який у тебе агент, і покладе скіл куди треба. Якщо
-визначити не вдалось:
-
-```bash
-./install.sh --platform claude       # Claude Code
-./install.sh --platform codex        # OpenAI Codex
-./install.sh --platform antigravity  # Google Antigravity
-./install.sh --platform all          # всі три
-```
-
-### Крок 3. Постав залежності
-
-```bash
-# macOS
-brew install ffmpeg
-pip install faster-whisper Pillow
-
-# Ubuntu / Debian
-sudo apt install ffmpeg
-pip install faster-whisper Pillow
-```
-
-Перевір, що все стало:
-
-```bash
-python3 ~/.claude/skills/matvieiev-agent_matvieiev-agent_reels-editor/scripts/check_env.py
-```
-
-Має написати `MODE: light`. Якщо `blocked` — там же список, чого бракує.
-
-### Крок 4. Працюй
-
-Відкрий агента в папці з відео і скажи звичайними словами:
-
-```
-змонтуй цей рілс
-```
-
-Перший запуск — агент привітається і поставить кілька питань про твій стиль.
-Далі просто кидаєш відео.
+`setup.py --check` показує стан, нічого не змінюючи.
 
 ---
 
 ## Що має бути на машині
 
-| | Навіщо | Обов'язково |
+| | Навіщо | Хто ставить |
 |---|---|---|
-| **ffmpeg** | Весь монтаж, звук, субтитри | Так |
-| **Python 3.10+** | Скрипти | Так |
-| **faster-whisper** | Розшифровка мови | Так |
-| **Pillow** | Малює хук | Так |
+| **Claude Code** (або Codex / Antigravity) | середовище агента | ти |
+| **Підписка ~$20/міс** | доступ до моделі | ти |
+| **ffmpeg** | монтаж, звук, субтитри | агент |
+| **Python 3.10+** | скрипти | агент |
+| **faster-whisper, Pillow** | розпізнавання і субтитри | агент |
 
-Модель Whisper (2.7 ГБ) завантажиться сама при першому запуску.
-
-**Більше нічого ставити не треба.** Якщо у твоєму ffmpeg немає libass — таке
-буває в урізаних збірках — субтитри намалює Pillow. Агент визначить це сам,
-скаже, і працюватиме далі. Результат той самий.
+Модель Whisper (2.7 ГБ) завантажиться сама при першому розпізнаванні.
+Якщо в системному ffmpeg немає libass — субтитри намалює Pillow, агент
+визначить це сам. Результат той самий.
 
 ---
 
@@ -192,7 +169,9 @@ python transcribe.py audio.wav transcript.json --model medium
 
 ```
 matvieiev-agent_reels-editor/
-├── install.sh                       інсталятор для трьох платформ
+├── setup.py                         ставить ffmpeg, Python, залежності
+├── install.sh                       реєструє навичку в агенті
+├── CLAUDE.md                        сценарій першого запуску
 ├── AGENTS.md                        точка входу для Codex
 ├── GEMINI.md                        точка входу для Antigravity
 ├── .claude-plugin/plugin.json       маніфест Claude Code

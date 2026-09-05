@@ -14,8 +14,39 @@ import sys
 from pathlib import Path
 
 
+def plugin_config():
+    """setup.py writes config.json with resolved paths — prefer them."""
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        cfg = parent / "config.json"
+        if cfg.exists():
+            try:
+                return json.loads(cfg.read_text()), parent
+            except Exception:
+                pass
+        if (parent / "setup.py").exists():
+            break
+    return {}, None
+
+
+CONFIG, PLUGIN_ROOT = plugin_config()
+
+
 def has_binary(name):
+    if CONFIG.get(name):
+        return True
+    if PLUGIN_ROOT and (PLUGIN_ROOT / "vendor" / name).exists():
+        return True
     return shutil.which(name) is not None
+
+
+def binary(name):
+    """Full path to a tool — vendor copy first, then config, then PATH."""
+    if PLUGIN_ROOT:
+        local = PLUGIN_ROOT / "vendor" / name
+        if local.exists():
+            return str(local)
+    return CONFIG.get(name) or shutil.which(name) or name
 
 
 def ffmpeg_filters():
@@ -23,7 +54,7 @@ def ffmpeg_filters():
     if not has_binary("ffmpeg"):
         return set()
     try:
-        out = subprocess.run(["ffmpeg", "-hide_banner", "-filters"],
+        out = subprocess.run([binary("ffmpeg"), "-hide_banner", "-filters"],
                              capture_output=True, text=True, timeout=30).stdout
     except Exception:
         return set()
