@@ -12,3 +12,4 @@ profiles/user.json
 vendor/
 config.json
 .uv-path
+pro/

@@ -30,6 +30,12 @@ EVERMEET_INFO = "https://evermeet.cx/ffmpeg/info/{tool}/release"
 UV_INSTALL = "https://astral.sh/uv/install.sh"
 PY_VERSION = "3.12"
 
+# Розширений режим. Ставиться ОКРЕМО і лише на явне прохання людини:
+# OpenMontage має ліцензію AGPLv3, тому ми його не вшиваємо і не поширюємо —
+# людина завантажує його сама, як будь-яку сторонню програму.
+OPENMONTAGE_REPO = "https://github.com/calesthio/OpenMontage.git"
+PRO_DIR = ROOT / "pro" / "OpenMontage"
+
 
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) reels-editor-setup"
 
@@ -198,6 +204,57 @@ def ensure_packages(py):
     run([uv, "pip", "install", "--python", py, *need])
 
 
+# ---------------------------------------------------------------- pro mode
+
+def install_pro():
+    """Downloads OpenMontage — optional, unlocks AI generation via paid APIs."""
+    if not shutil.which("git"):
+        return False, "потрібен git — постав Xcode Command Line Tools"
+    if not shutil.which("npm"):
+        return False, ("потрібен Node.js — завантаж з nodejs.org "
+                       "(без нього не працює композиція Remotion)")
+
+    PRO_DIR.parent.mkdir(parents=True, exist_ok=True)
+
+    if not PRO_DIR.exists():
+        work("завантажую OpenMontage (~260 МБ, кілька хвилин)…")
+        run(["git", "clone", "--depth", "1", OPENMONTAGE_REPO, str(PRO_DIR)])
+    else:
+        work("OpenMontage уже завантажений")
+
+    om_venv = PRO_DIR / ".venv"
+    if not (om_venv / "bin" / "python").exists():
+        work("створюю оточення для OpenMontage…")
+        base = find_python310() or ensure_venv()
+        uv = shutil.which("uv") or (ROOT / ".uv-path").read_text().strip() \
+            if (ROOT / ".uv-path").exists() else shutil.which("uv")
+        if uv:
+            run([uv, "venv", "--python", PY_VERSION, str(om_venv)])
+        else:
+            run([base, "-m", "venv", str(om_venv)])
+
+    om_py = str(om_venv / "bin" / "python")
+    work("ставлю залежності OpenMontage (кілька хвилин)…")
+    try:
+        run([om_py, "-m", "pip", "install", "--quiet", "-r",
+             str(PRO_DIR / "requirements.txt")])
+    except subprocess.CalledProcessError:
+        uv = shutil.which("uv")
+        if not uv:
+            return False, "не вдалось поставити залежності OpenMontage"
+        run([uv, "pip", "install", "--python", om_py, "-r",
+             str(PRO_DIR / "requirements.txt")])
+
+    work("ставлю Remotion (~580 МБ, це найдовше)…")
+    run(["npm", "install", "--silent"], cwd=str(PRO_DIR / "remotion-composer"))
+
+    env_file = PRO_DIR / ".env"
+    if not env_file.exists() and (PRO_DIR / ".env.example").exists():
+        shutil.copy(PRO_DIR / ".env.example", env_file)
+
+    return True, None
+
+
 # ---------------------------------------------------------------- report
 
 def status():
@@ -209,17 +266,23 @@ def status():
             have_pkgs = True
         except Exception:
             pass
+    pro_py = PRO_DIR / ".venv" / "bin" / "python"
     return {
         "ffmpeg": which("ffmpeg"),
         "ffprobe": which("ffprobe"),
         "python": str(py) if py.exists() else None,
         "packages": have_pkgs,
+        "mode": "pro" if pro_py.exists() else "free",
+        "openmontage": str(PRO_DIR) if pro_py.exists() else None,
+        "openmontage_python": str(pro_py) if pro_py.exists() else None,
     }
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--pro", action="store_true",
+                    help="додатково поставити OpenMontage (генерація через платні API)")
     a = ap.parse_args()
 
     st = status()
@@ -229,7 +292,7 @@ def main():
         print(json.dumps({**st, "ready": ready}, indent=2))
         return 0 if ready else 1
 
-    if ready:
+    if ready and not a.pro:
         say("Все вже встановлено — можна монтувати.")
         CONFIG.write_text(json.dumps(status(), indent=2), encoding="utf-8")
         return 0
@@ -264,10 +327,31 @@ def main():
         say(f"  ! Не вийшло: {e}")
         return 1
 
+    if a.pro:
+        say("")
+        say("Тепер розширений режим. Це стороння програма OpenMontage —")
+        say("вона під ліцензією AGPLv3 і завантажується з її власного репозиторію.")
+        say("")
+        try:
+            good, err = install_pro()
+        except subprocess.CalledProcessError as e:
+            good, err = False, (e.stderr or "").strip()[:300]
+        except Exception as e:
+            good, err = False, str(e)
+        if good:
+            ok("розширений режим — генерація зображень і відео")
+        else:
+            say(f"  ! Розширений режим не став: {err}")
+            say("    Безкоштовний режим від цього не постраждав — він працює.")
+
     CONFIG.write_text(json.dumps(status(), indent=2), encoding="utf-8")
     say("")
     say("Готово. Можна кидати відео.")
     say("Перше розпізнавання додатково завантажить мовну модель (~2.7 ГБ).")
+    if not a.pro:
+        say("")
+        say("Це безкоштовний режим — усе локально, без жодних API-ключів.")
+        say("Потрібна генерація картинок і відео? Скажи агенту «постав розширений режим».")
     return 0
 
 
