@@ -5,7 +5,7 @@ dead-air removal, word-level captions, and a hook placed where the platform
 will not crop it.
 
 **The full working instructions live in
-[`skills/reels-editor/SKILL.md`](skills/reels-editor/SKILL.md). Read that file
+[`skills/matvieiev-agent_reels-editor/SKILL.md`](skills/matvieiev-agent_reels-editor/SKILL.md). Read that file
 before editing any video — it defines the stages, the questions to ask, and the
 rules you must not break.**
 
@@ -13,12 +13,12 @@ rules you must not break.**
 
 | Stage | Script |
 |---|---|
-| Detect what this machine can do | `skills/reels-editor/scripts/check_env.py` |
-| Transcribe with word timestamps | `skills/reels-editor/scripts/transcribe.py` |
-| Cut pauses, remap caption timings | `skills/reels-editor/scripts/cut_silence.py` |
-| Burn captions (ASS or Remotion) | `skills/reels-editor/scripts/burn_captions.py` |
-| Place the hook in the safe zone | `skills/reels-editor/scripts/hook_overlay.py` |
-| Measure a reference Reel | `skills/reels-editor/scripts/analyze_reference.py` |
+| Detect what this machine can do | `skills/matvieiev-agent_matvieiev-agent_reels-editor/scripts/check_env.py` |
+| Transcribe with word timestamps | `skills/matvieiev-agent_matvieiev-agent_reels-editor/scripts/transcribe.py` |
+| Cut pauses, remap caption timings | `skills/matvieiev-agent_matvieiev-agent_reels-editor/scripts/cut_silence.py` |
+| Burn captions (ASS or Remotion) | `skills/matvieiev-agent_matvieiev-agent_reels-editor/scripts/burn_captions.py` |
+| Place the hook in the safe zone | `skills/matvieiev-agent_matvieiev-agent_reels-editor/scripts/hook_overlay.py` |
+| Measure a reference Reel | `skills/matvieiev-agent_matvieiev-agent_reels-editor/scripts/analyze_reference.py` |
 
 Run `check_env.py` first. It reports whether you are in `light` mode (ffmpeg
 with libass) or `openmontage` mode, and refuses to proceed if something

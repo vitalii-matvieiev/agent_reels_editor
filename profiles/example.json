@@ -20,6 +20,12 @@
     "_comment": "gap_keep 0.12 — динамічніше; нижче 0.10 звучить задихано"
   },
 
+  "transcription": {
+    "model": "large-v3",
+    "_options": ["large-v3", "medium", "small", "base"],
+    "_comment": "large-v3 — найточніша на власних назвах, ~17 хв на хвилину відео. Міняти тільки на прохання користувача."
+  },
+
   "goals": {
     "primary": "reach",
     "_options": ["reach", "warmup", "announcement", "sales"],

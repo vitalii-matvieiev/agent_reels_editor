@@ -23,14 +23,14 @@ detect() {
 install_to() {
   local platform="$1" dest root
   case "$platform" in
-    claude)      root="$HOME/.claude";  dest="$root/skills/reels-editor" ;;
-    codex)       root="$HOME/.codex";   dest="$root/../.agents/skills/reels-editor" ;;
-    antigravity) root="$HOME/.agent";   dest="$root/skills/reels-editor" ;;
+    claude)      root="$HOME/.claude";  dest="$root/skills/matvieiev-agent_reels-editor" ;;
+    codex)       root="$HOME/.codex";   dest="$root/../.agents/skills/matvieiev-agent_reels-editor" ;;
+    antigravity) root="$HOME/.agent";   dest="$root/skills/matvieiev-agent_reels-editor" ;;
     *) say "unknown platform: $platform"; exit 1 ;;
   esac
 
   mkdir -p "$dest"
-  ( cd "$SRC/skills/reels-editor" && \
+  ( cd "$SRC/skills/matvieiev-agent_reels-editor" && \
     find . -type d -name __pycache__ -prune -o -type f -print0 \
     | tar --null -cf - -T - ) | ( cd "$dest" && tar -xf - )
   mkdir -p "$dest/../../profiles" 2>/dev/null || true

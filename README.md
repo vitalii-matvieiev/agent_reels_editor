@@ -48,7 +48,7 @@
 > ❌ «Claude Code монтує мої Reels» — підпис, нічого не обіцяє
 > ✅ «Монтаж коштував $10. Агент робить за 3 хвилини» — заява, з якою можна посперечатись
 
-Заміри й математика — у [`skills/reels-editor/references/safe-zones.md`](skills/reels-editor/references/safe-zones.md).
+Заміри й математика — у [`skills/matvieiev-agent_reels-editor/references/safe-zones.md`](skills/matvieiev-agent_reels-editor/references/safe-zones.md).
 
 ---
 
@@ -60,7 +60,7 @@
 
 ```bash
 git clone {{REPO_URL}}
-cd reels-agent
+cd matvieiev-agent_reels-editor
 ```
 
 **Або zip:** завантаж [{{ZIP_URL}}]({{ZIP_URL}}) і розпакуй.
@@ -96,7 +96,7 @@ pip install faster-whisper Pillow
 Перевір, що все стало:
 
 ```bash
-python3 ~/.claude/skills/reels-editor/scripts/check_env.py
+python3 ~/.claude/skills/matvieiev-agent_matvieiev-agent_reels-editor/scripts/check_env.py
 ```
 
 Має написати `MODE: light`. Якщо `blocked` — там же список, чого бракує.
@@ -132,6 +132,34 @@ python3 ~/.claude/skills/reels-editor/scripts/check_env.py
 
 ---
 
+## Точність проти швидкості
+
+За замовчуванням стоїть **найточніша модель** розшифровки — `large-v3`. Вона
+найкраще чує імена, бренди й назви, а це найдорожчі помилки: неправильне ім'я
+в анонсі помічають усі.
+
+Платиш за це часом — приблизно **17 хвилин на кожну хвилину відео** на
+звичайному процесорі. Агент скаже точну оцінку перед запуском і сам
+запропонує альтернативу:
+
+| Модель | Хвилина відео | Чим платиш |
+|---|---|---|
+| `large-v3` (за замовчуванням) | ~17 хв | нічим — еталон |
+| `medium` | ~6 хв | іноді плутає імена й рідкі слова |
+| `small` | ~3 хв | помітно більше помилок у назвах |
+| `base` | ~1.5 хв | лише для чернетки |
+
+Хочеш швидше — просто скажи агенту, він перемкне і запам'ятає вибір. Або
+вручну:
+
+```bash
+python transcribe.py audio.wav transcript.json --model medium
+```
+
+Агент ніколи не знизить точність мовчки — тільки після твого слова.
+
+---
+
 ## Скільки коштує
 
 **Нічого.** Розшифровка, монтаж, субтитри, рендер — усе локально на твоїй
@@ -162,13 +190,13 @@ python3 ~/.claude/skills/reels-editor/scripts/check_env.py
 ## Структура
 
 ```
-reels-agent/
+matvieiev-agent_reels-editor/
 ├── install.sh                       інсталятор для трьох платформ
 ├── AGENTS.md                        точка входу для Codex
 ├── GEMINI.md                        точка входу для Antigravity
 ├── .claude-plugin/plugin.json       маніфест Claude Code
 ├── profiles/example.json            схема профілю користувача
-└── skills/reels-editor/
+└── skills/matvieiev-agent_reels-editor/
     ├── SKILL.md                     головні інструкції агента
     ├── references/
     │   ├── safe-zones.md            заміри безпечних зон, чекліст хука

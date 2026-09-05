@@ -1,5 +1,5 @@
 ---
-name: reels-editor
+name: matvieiev-agent_reels-editor
 description: Edits vertical short-form video (Reels, Shorts, TikTok) end to end — transcribes speech, cuts dead air, burns word-level captions, and places the hook inside the platform-safe zone. Use whenever the user hands over a talking-head clip, screen recording, or raw phone footage and wants it turned into a publishable Reel. Triggers on "змонтуй рілс", "зроби Reels", "edit this Reel", "make a Short", "cut the pauses", "add subtitles", "нарізати відео", "субтитри до відео".
 license: MIT
 ---
@@ -132,6 +132,31 @@ python scripts/transcribe.py "$AUDIO" transcript.json --language auto
 ```
 
 Word-level timestamps are not optional — every later stage depends on them.
+
+**Default model is `large-v3` — the most accurate one, and the slowest.** It
+runs ~17x slower than real time on CPU, so a one-minute clip takes 15-20
+minutes. The script prints an estimate before it starts.
+
+**Tell the user that number, and offer the alternative — every time:**
+
+> Розшифровка займе приблизно 14 хвилин. Я поставив найточнішу модель, вона
+> найкраще чує імена й назви.
+> **Якщо потрібно швидше — скажи, і я перемкну:** medium ~5 хв, small ~2 хв.
+> Точність на власних назвах при цьому падає.
+
+English variant:
+
+> This will take about 14 minutes. I'm using the most accurate model — it
+> handles names and proper nouns best.
+> **Say the word if you need it faster:** medium ~5 min, small ~2 min, at the
+> cost of accuracy on names.
+
+Then wait a moment for an answer before starting a long run. If they want
+speed, pass `--model medium` (or `small`). Record the choice in the profile
+under `transcription.model` so you stop asking every time.
+
+Never silently downgrade the model to save time. Accuracy on names is the
+thing the user cannot check without listening to the whole clip again.
 
 **Then read the transcript back to the user and ask them to check names.**
 Whisper reliably mangles proper nouns: it turned «Дмитром» into «Митром» in the
