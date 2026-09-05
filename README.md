@@ -58,7 +58,7 @@
 
 Завантаж архів **`matvieiev-agent_reels-editor.zip`** зі сторінки:
 
-<https://www.matvieiev.com/reels-agent>
+<https://www.matvieiev.com/agents/reels-editor>
 
 Розпакуй його там, де тобі зручно:
 
