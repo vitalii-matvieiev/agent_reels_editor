@@ -21,6 +21,13 @@ import tempfile
 
 from PIL import Image, ImageDraw, ImageFont
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _tools import FFMPEG, FFPROBE  # noqa: E402
+
+
 W, H = 1080, 1920
 
 # Зона, у якій текст переживає і кроп сітки, і накладки плеєра.
@@ -71,7 +78,7 @@ def grid_preview(video, overlay_png, out_png, at=1.0):
     keep = int(W / 0.75)              # 1440 px із 1920
     top = (H - keep) // 2             # 240 px зверху і знизу зникають
     subprocess.run([
-        "ffmpeg", "-v", "error", "-y", "-ss", str(at), "-i", video, "-i", overlay_png,
+        FFMPEG, "-v", "error", "-y", "-ss", str(at), "-i", video, "-i", overlay_png,
         "-filter_complex",
         f"[0:v]scale={W}:{H}[b];[b][1:v]overlay=0:0,crop={W}:{keep}:0:{top}",
         "-frames:v", "1", out_png,
@@ -99,7 +106,7 @@ def main():
 
     enable = f":enable='lte(t,{a.seconds})'" if a.seconds else ""
     subprocess.run([
-        "ffmpeg", "-v", "error", "-y", "-i", a.src, "-i", png,
+        FFMPEG, "-v", "error", "-y", "-i", a.src, "-i", png,
         "-filter_complex", f"[0:v]scale={W}:{H}[b];[b][1:v]overlay=0:0{enable}[v]",
         "-map", "[v]", "-map", "0:a?",
         "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",

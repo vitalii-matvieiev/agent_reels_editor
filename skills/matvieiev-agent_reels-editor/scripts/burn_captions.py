@@ -17,6 +17,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from check_env import ffmpeg_filters, find_openmontage  # noqa: E402
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _tools import FFMPEG, FFPROBE  # noqa: E402
+
+
 WORDS_PER_PAGE = 3
 DEFAULTS = {"accent": "#FFC93C", "text": "#FFFFFF", "font": "Arial Black", "font_size": 76}
 
@@ -65,8 +72,10 @@ def group_words(words):
 
 
 def hex_to_ass(h):
+    """ASS colour literal: &HAABBGGRR& — the trailing & is required, without it
+    libass prints stray characters into the caption."""
     h = h.lstrip("#")
-    return f"&H00{h[4:6]}{h[2:4]}{h[0:2]}"  # ASS is BGR
+    return f"&H00{h[4:6]}{h[2:4]}{h[0:2]}&"
 
 
 def ts(x):
@@ -85,10 +94,10 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,{cfg['font']},{cfg['font_size']},{hex_to_ass(cfg['text'])},{hex_to_ass(cfg['text'])},&H00000000,&HB0000000,-1,0,0,0,100,100,0,0,1,7,4,2,80,80,{margin_v},1
+Style: Cap,{cfg['font']},{cfg['font_size']},{hex_to_ass(cfg["text"]).rstrip("&")},{hex_to_ass(cfg["text"]).rstrip("&")},&H00000000,&HB0000000,-1,0,0,0,100,100,0,0,1,7,4,2,80,80,{margin_v},1
 
 [Events]
-Format: Layer, Start, End, Style, MarginL, MarginR, MarginV, Effect, Text
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     active, idle = f"{{\\c{hex_to_ass(cfg['accent'])}}}", f"{{\\c{hex_to_ass(cfg['text'])}}}"
     lines = []
@@ -107,7 +116,7 @@ Format: Layer, Start, End, Style, MarginL, MarginR, MarginV, Effect, Text
 
 def probe_fps(video):
     out = subprocess.run(
-        ["ffprobe", "-v", "error", "-select_streams", "v:0",
+        [FFPROBE, "-v", "error", "-select_streams", "v:0",
          "-show_entries", "stream=r_frame_rate", "-of", "csv=p=0", video],
         capture_output=True, text=True).stdout.strip()
     try:
@@ -119,7 +128,7 @@ def probe_fps(video):
 
 def probe_duration(video):
     out = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+        [FFPROBE, "-v", "error", "-show_entries", "format=duration",
          "-of", "default=nw=1:nk=1", video],
         capture_output=True, text=True).stdout.strip()
     return float(out or 0)
@@ -127,7 +136,7 @@ def probe_duration(video):
 
 def probe_dims(video):
     out = subprocess.run(
-        ["ffprobe", "-v", "error", "-select_streams", "v:0",
+        [FFPROBE, "-v", "error", "-select_streams", "v:0",
          "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", video],
         capture_output=True, text=True).stdout.strip()
     w, h = out.split("x")[:2]
@@ -155,7 +164,7 @@ def main():
         n = build_ass(words, cfg, h, w, ass_path)
         filt = "ass" if "ass" in filters else "subtitles"
         subprocess.run(
-            ["ffmpeg", "-v", "error", "-y", "-i", a.input,
+            [FFMPEG, "-v", "error", "-y", "-i", a.input,
              "-vf", f"{filt}=f={ass_path}",
              "-c:v", "libx264", "-preset", "slow", "-crf", "20",
              "-pix_fmt", "yuv420p", "-c:a", "copy",
@@ -182,7 +191,7 @@ def main():
             frames, uniq = render_sequence(groups, w, h, fps, dur, cfg, tmp)
             y = round(h * 0.78) - STRIP_H // 2 if h > w else h - STRIP_H - 60
             subprocess.run(
-                ["ffmpeg", "-v", "error", "-y", "-i", a.input,
+                [FFMPEG, "-v", "error", "-y", "-i", a.input,
                  "-framerate", str(fps), "-i", f"{tmp}/%06d.png",
                  "-filter_complex", f"[0:v][1:v]overlay=0:{y}:shortest=1[v]",
                  "-map", "[v]", "-map", "0:a?",

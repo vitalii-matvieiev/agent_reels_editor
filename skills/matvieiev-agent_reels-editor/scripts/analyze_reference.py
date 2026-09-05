@@ -12,13 +12,20 @@ import re
 import subprocess
 import sys
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _tools import FFMPEG, FFPROBE  # noqa: E402
+
+
 
 def run(cmd):
     return subprocess.run(cmd, capture_output=True, text=True).stdout
 
 
 def probe(video):
-    out = run(["ffprobe", "-v", "error",
+    out = run([FFPROBE, "-v", "error",
                "-show_entries", "format=duration,size,bit_rate",
                "-show_entries", "stream=codec_name,codec_type,width,height,r_frame_rate",
                "-of", "json", video])
@@ -28,7 +35,7 @@ def probe(video):
 def shot_changes(video):
     """Average shot length — the single best proxy for pace."""
     out = subprocess.run(
-        ["ffmpeg", "-hide_banner", "-i", video, "-filter:v",
+        [FFMPEG, "-hide_banner", "-i", video, "-filter:v",
          "select='gt(scene,0.3)',showinfo", "-f", "null", "-"],
         capture_output=True, text=True).stderr
     return len(re.findall(r"pts_time:", out))
@@ -36,7 +43,7 @@ def shot_changes(video):
 
 def loudness(video):
     out = subprocess.run(
-        ["ffmpeg", "-hide_banner", "-i", video, "-map", "0:a",
+        [FFMPEG, "-hide_banner", "-i", video, "-map", "0:a",
          "-af", "ebur128=peak=true", "-f", "null", "-"],
         capture_output=True, text=True).stderr
     res = {}

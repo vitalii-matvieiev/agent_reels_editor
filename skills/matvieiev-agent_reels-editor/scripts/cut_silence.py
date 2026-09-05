@@ -1,10 +1,17 @@
 import json, subprocess, sys
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _tools import FFMPEG, FFPROBE  # noqa: E402
+
+
 SRC = sys.argv[1] if len(sys.argv) > 1 else "base_1080.mp4"
 OUT = sys.argv[2] if len(sys.argv) > 2 else "tight_1080.mp4"
 TRANSCRIPT = sys.argv[3] if len(sys.argv) > 3 else "transcript.json"
 
-DUR = float(subprocess.run(["ffprobe","-v","error","-show_entries","format=duration",
+DUR = float(subprocess.run([FFPROBE,"-v","error","-show_entries","format=duration",
                            "-of","default=nw=1:nk=1",SRC],
                           capture_output=True,text=True).stdout.strip())
 GAP_MIN  = 0.30   # що коротше — не чіпаємо, це природне дихання
@@ -66,7 +73,7 @@ for i, (s, e) in enumerate(keeps):
 concat_in = "".join(f"[v{i}][a{i}]" for i in range(len(keeps)))
 fc = "".join(parts) + f"{concat_in}concat=n={len(keeps)}:v=1:a=1[v][a]"
 
-cmd = ["ffmpeg", "-v", "error", "-y", "-i", SRC, "-filter_complex", fc,
+cmd = [FFMPEG, "-v", "error", "-y", "-i", SRC, "-filter_complex", fc,
        "-map", "[v]", "-map", "[a]",
        "-c:v", "libx264", "-preset", "slow", "-crf", "20", "-pix_fmt", "yuv420p",
        "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart", OUT]

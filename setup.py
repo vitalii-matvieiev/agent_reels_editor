@@ -24,10 +24,25 @@ VENDOR = ROOT / "vendor"
 VENV = ROOT / ".venv"
 CONFIG = ROOT / "config.json"
 
-FFMPEG_MAC = "https://evermeet.cx/ffmpeg/getrelease/zip"
-FFPROBE_MAC = "https://evermeet.cx/ffprobe/getrelease/zip"
+# evermeet's /getrelease/ endpoint returns ffmpeg for both tools, so resolve
+# the real per-tool URL through its info API instead.
+EVERMEET_INFO = "https://evermeet.cx/ffmpeg/info/{tool}/release"
 UV_INSTALL = "https://astral.sh/uv/install.sh"
 PY_VERSION = "3.12"
+
+
+UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) reels-editor-setup"
+
+
+def http_get(url, timeout=120):
+    """Fetch bytes. Some CDNs reject urllib's default User-Agent with 403."""
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    return urllib.request.urlopen(req, timeout=timeout).read()
+
+
+def http_download(url, dest, timeout=300):
+    data = http_get(url, timeout)
+    Path(dest).write_bytes(data)
 
 
 def say(msg):
@@ -62,19 +77,39 @@ def fetch_ffmpeg():
         return False, ("автоматична установка ffmpeg зроблена для macOS. "
                        "На Linux: sudo apt install ffmpeg")
     VENDOR.mkdir(exist_ok=True)
-    for name, url in (("ffmpeg", FFMPEG_MAC), ("ffprobe", FFPROBE_MAC)):
-        if (VENDOR / name).exists():
+    for name in ("ffmpeg", "ffprobe"):
+        target = VENDOR / name
+        if target.exists():
             continue
+
+        info = json.loads(http_get(EVERMEET_INFO.format(tool=name), 60))
+        url = next((d["url"] for d in info.get("download", {}).values()
+                    if d.get("url", "").endswith(".zip")), None)
+        if not url:
+            return False, f"не знайшов, звідки завантажити {name}"
+
         work(f"завантажую {name} (~25 МБ)…")
         tmp = VENDOR / f"{name}.zip"
-        urllib.request.urlretrieve(url, tmp)
+        http_download(url, tmp)
+
+        # the archive holds one binary; its inner name is not reliable
         with zipfile.ZipFile(tmp) as z:
-            z.extractall(VENDOR)
+            member = next(m for m in z.namelist() if not m.startswith("__"))
+            with z.open(member) as src, open(target, "wb") as dst:
+                shutil.copyfileobj(src, dst)
         tmp.unlink()
-        (VENDOR / name).chmod(0o755)
+        target.chmod(0o755)
+
         # macOS quarantines downloads; strip it so the binary can run
-        subprocess.run(["xattr", "-d", "com.apple.quarantine", str(VENDOR / name)],
+        subprocess.run(["xattr", "-d", "com.apple.quarantine", str(target)],
                        capture_output=True)
+
+        # make sure we actually got the tool we asked for
+        probe = subprocess.run([str(target), "-hide_banner", "-version"],
+                               capture_output=True, text=True)
+        if name not in (probe.stdout or "").split("\n")[0]:
+            target.unlink(missing_ok=True)
+            return False, f"завантажений файл виявився не {name}"
     return True, None
 
 
@@ -101,7 +136,7 @@ def ensure_uv():
     if uv:
         return uv
     work("ставлю uv — менеджер, який принесе потрібний Python…")
-    script = urllib.request.urlopen(UV_INSTALL, timeout=60).read().decode()
+    script = http_get(UV_INSTALL).decode()
     env = dict(os.environ, UV_INSTALL_DIR=str(VENDOR), UV_NO_MODIFY_PATH="1")
     subprocess.run(["sh", "-c", script], env=env, check=True,
                    capture_output=True, text=True)
@@ -129,6 +164,7 @@ def ensure_venv():
     work(f"ставлю Python {PY_VERSION} (у папку плагіна, систему не чіпає)…")
     run([uv, "python", "install", PY_VERSION])
     run([uv, "venv", "--python", PY_VERSION, str(VENV)])
+    (ROOT / ".uv-path").write_text(uv, encoding="utf-8")
     return str(py)
 
 
@@ -142,8 +178,24 @@ def ensure_packages(py):
     if not need:
         return
     work(f"ставлю {', '.join(need)} (кілька хвилин)…")
-    run([py, "-m", "pip", "install", "--quiet", "--upgrade", "pip"])
-    run([py, "-m", "pip", "install", "--quiet", *need])
+
+    # A uv-created venv has no pip of its own — install through uv instead.
+    try:
+        run([py, "-m", "pip", "--version"])
+        run([py, "-m", "pip", "install", "--quiet", "--upgrade", "pip"])
+        run([py, "-m", "pip", "install", "--quiet", *need])
+        return
+    except subprocess.CalledProcessError:
+        pass
+
+    uv = None
+    marker = ROOT / ".uv-path"
+    if marker.exists():
+        uv = marker.read_text().strip()
+    uv = uv if uv and Path(uv).exists() else (shutil.which("uv") or ensure_uv())
+    if not uv:
+        raise RuntimeError("немає ні pip, ні uv — не можу поставити пакети")
+    run([uv, "pip", "install", "--python", py, *need])
 
 
 # ---------------------------------------------------------------- report

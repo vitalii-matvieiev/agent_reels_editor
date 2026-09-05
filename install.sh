@@ -56,21 +56,16 @@ else
 fi
 
 say ""
-say "Перевіряю залежності..."
-MISSING=0
-command -v ffmpeg  >/dev/null || { warn "ffmpeg не знайдено — brew install ffmpeg"; MISSING=1; }
-command -v python3 >/dev/null || { warn "python3 не знайдено"; MISSING=1; }
-if command -v python3 >/dev/null; then
-  python3 -c "import faster_whisper" 2>/dev/null \
-    || { warn "faster-whisper не встановлено — pip install faster-whisper"; MISSING=1; }
-  python3 -c "import PIL" 2>/dev/null \
-    || { warn "Pillow не встановлено — pip install Pillow"; MISSING=1; }
+if python3 "$SRC/setup.py" --check >/dev/null 2>&1; then
+  ok "все потрібне вже стоїть"
+  say ""
+  say "Готово. Відкрий агента в папці з відео і скажи:"
+  say '   "змонтуй цей рілс"'
+else
+  say "Залишилось доставити те, чого бракує:"
+  say ""
+  say "   python3 setup.py"
+  say ""
+  say "Якщо тебе веде агент — він зробить це сам, нічого вводити не треба."
 fi
-[[ $MISSING -eq 0 ]] && ok "всі залежності на місці"
-
-say ""
-say "Готово. Відкрий свого агента в папці з відео і скажи:"
-say '   "змонтуй цей рілс"'
-say ""
-[[ $MISSING -eq 1 ]] && say "Спершу постав те, що вище — інакше перший запуск зупиниться."
 say ""
