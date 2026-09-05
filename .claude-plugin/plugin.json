@@ -1,0 +1,11 @@
+{
+  "name": "reels-agent",
+  "version": "1.0.0",
+  "description": "Монтує вертикальні рілси: транскрипція, різка пауз, субтитри по словах, хук у безпечній зоні. Вчиться на твоєму фідбеку.",
+  "author": {
+    "name": "Vitalii Matvieiev",
+    "url": "https://www.instagram.com/matvieiev.vitaliy"
+  },
+  "license": "MIT",
+  "keywords": ["reels", "shorts", "tiktok", "video-editing", "subtitles", "ffmpeg", "whisper"]
+}

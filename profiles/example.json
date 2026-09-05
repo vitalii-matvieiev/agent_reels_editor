@@ -1,0 +1,54 @@
+{
+  "_comment": "Copy to user.json and fill in during onboarding. Never commit user.json.",
+  "name": "Ім'я / бренд",
+  "positioning": "Одним рядком: що робить і для кого. Формує формулювання хуків.",
+  "language": "auto",
+
+  "style": {
+    "accent": "#FFC93C",
+    "text": "#FFFFFF",
+    "font": "Arial Black",
+    "font_size": 76,
+    "logo": null,
+    "logo_position": "top-left"
+  },
+
+  "pacing": {
+    "gap_min": 0.30,
+    "gap_keep": 0.18,
+    "words_per_page": 3,
+    "_comment": "gap_keep 0.12 — динамічніше; нижче 0.10 звучить задихано"
+  },
+
+  "goals": {
+    "primary": "reach",
+    "_options": ["reach", "warmup", "announcement", "sales"],
+    "target_duration_s": 45
+  },
+
+  "reference": {
+    "url": null,
+    "measured": {
+      "avg_shot_s": null,
+      "caption_height_px": null,
+      "hook_y": null
+    }
+  },
+
+  "corrections": {
+    "_comment": "Whisper systematically mangles proper nouns. Every fix lands here permanently.",
+    "митром": "Дмитром"
+  },
+
+  "history": [
+    {
+      "date": "2026-09-04",
+      "topic": "агент-монтажер",
+      "hook": "Claude Code монтує мої Reels",
+      "duration_s": 145,
+      "impressions": 96,
+      "verdict": "хук угорі кадру — сітка профілю зрізала перший рядок",
+      "changed": "хук перенесено в зону y 480…1350, переписано як заяву з цифрою"
+    }
+  ]
+}
