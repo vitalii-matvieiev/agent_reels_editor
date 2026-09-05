@@ -78,15 +78,10 @@ def main():
         mode = "blocked"
     elif report["ffmpeg_libass"]:
         mode = "light"
-    elif om:
-        mode = "openmontage"
     else:
-        mode = "blocked"
-        problems.append(
-            "this ffmpeg has no libass and OpenMontage is not installed — "
-            "captions cannot be burned. Either 'brew reinstall ffmpeg' or "
-            "install OpenMontage: https://github.com/calesthio/OpenMontage"
-        )
+        # No libass — captions render through Pillow instead. Self-contained,
+        # nothing else to install.
+        mode = "standalone"
 
     report["mode"] = mode
     report["problems"] = problems
@@ -95,9 +90,11 @@ def main():
     print()
     if mode == "light":
         print("MODE: light — ffmpeg burns ASS subtitles. Nothing else needed.")
-    elif mode == "openmontage":
-        print(f"MODE: openmontage — captions via Remotion at {om}")
-        print("NOTE: this ffmpeg has no libass, so ASS subtitles are unavailable.")
+    elif mode == "standalone":
+        print("MODE: standalone — this ffmpeg has no libass, so captions render")
+        print("      through Pillow instead. Works the same; nothing to install.")
+        if om:
+            print(f"      (OpenMontage also found at {om}, but not required.)")
     else:
         print("MODE: blocked — fix these before editing:")
         for p in problems:

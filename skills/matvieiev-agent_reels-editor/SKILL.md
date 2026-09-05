@@ -98,9 +98,13 @@ know what they are getting:
 
 | Mode | Requires | Captions via |
 |---|---|---|
-| `light` | ffmpeg with libass + faster-whisper | ASS subtitles, burned by ffmpeg |
-| `openmontage` | OpenMontage installed | Remotion, React-rendered |
+| `light` | ffmpeg with libass | ASS subtitles, burned by ffmpeg |
+| `standalone` | Pillow only | caption strip drawn by Pillow, composited by ffmpeg |
 | `blocked` | — | Stop and give install instructions |
+
+Both working modes produce the same result. `standalone` is not a degraded
+fallback — it exists so a stripped-down ffmpeg build cannot block the user.
+Nothing extra ever needs installing.
 
 Then probe the footage:
 

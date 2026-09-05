@@ -14,13 +14,13 @@ Some Homebrew builds ship without `libass`, `libfreetype` and `fontconfig` —
 the build that produced this plugin was one of them. Without them ffmpeg cannot
 burn subtitles or draw text at all.
 
-**Fix, in order of preference:**
+**This is handled automatically.** `check_env.py` detects the missing filter
+and switches to `standalone` mode, where `render_captions_png.py` draws the
+caption strip with Pillow and ffmpeg composites it with `overlay`. Same result,
+nothing to install.
 
-1. Reinstall a full build: `brew reinstall ffmpeg` (verify with the check above)
-2. Use `openmontage` mode — captions render through Remotion, no libass needed
-3. Render caption frames as PNG with Pillow and composite them via `overlay`
-
-`scripts/check_env.py` detects this and picks the mode for you.
+If you would rather have libass anyway: `brew reinstall ffmpeg`, then verify
+with the check above.
 
 ## Whisper mangles proper nouns
 
@@ -51,13 +51,6 @@ captions.
 **Fix:** `white-space: pre` on the word span. In OpenMontage this lives in
 `remotion-composer/src/components/CaptionOverlay.tsx`. This bug breaks captions
 for every space-delimited language, not just Ukrainian.
-
-## Remotion render fails on staticFile
-
-**Symptom:** `Do not include the public/ prefix when using staticFile()`.
-
-**Fix:** in `tools/video/remotion_caption_burn.py`, the `videoSrc` prop must be
-`talking-head/<file>`, not `public/talking-head/<file>`.
 
 ## Transcription is slow
 

@@ -54,16 +54,18 @@
 
 ## Встановлення
 
-### Крок 1. Візьми плагін
+### Крок 1. Завантаж плагін
 
-**Через git:**
+Завантаж архів **`matvieiev-agent_reels-editor.zip`** зі сторінки:
+
+<https://www.matvieiev.com/reels-agent>
+
+Розпакуй його там, де тобі зручно:
 
 ```bash
-git clone {{REPO_URL}}
+unzip matvieiev-agent_reels-editor.zip
 cd matvieiev-agent_reels-editor
 ```
-
-**Або zip:** завантаж [{{ZIP_URL}}]({{ZIP_URL}}) і розпакуй.
 
 ### Крок 2. Запусти інсталятор
 
@@ -122,13 +124,12 @@ python3 ~/.claude/skills/matvieiev-agent_matvieiev-agent_reels-editor/scripts/ch
 | **Python 3.10+** | Скрипти | Так |
 | **faster-whisper** | Розшифровка мови | Так |
 | **Pillow** | Малює хук | Так |
-| **OpenMontage** | Запасний шлях для субтитрів | Ні |
 
 Модель Whisper (2.7 ГБ) завантажиться сама при першому запуску.
 
-**Якщо в твоєму ffmpeg немає libass** — таке буває в урізаних збірках — субтитри
-підуть через [OpenMontage](https://github.com/calesthio/OpenMontage). Агент
-визначить це сам і скаже. Найпростіше все ж поставити повний ffmpeg.
+**Більше нічого ставити не треба.** Якщо у твоєму ffmpeg немає libass — таке
+буває в урізаних збірках — субтитри намалює Pillow. Агент визначить це сам,
+скаже, і працюватиме далі. Результат той самий.
 
 ---
 
@@ -205,7 +206,8 @@ matvieiev-agent_reels-editor/
         ├── check_env.py             що вміє ця машина
         ├── transcribe.py            розшифровка з мітками слів
         ├── cut_silence.py           різка пауз + перерахунок субтитрів
-        ├── burn_captions.py         субтитри: ASS або Remotion
+        ├── burn_captions.py         субтитри: ASS або Pillow
+        ├── render_captions_png.py   малює субтитри, коли немає libass
         ├── hook_overlay.py          хук у безпечній зоні
         └── analyze_reference.py     заміри чужого рілса
 ```

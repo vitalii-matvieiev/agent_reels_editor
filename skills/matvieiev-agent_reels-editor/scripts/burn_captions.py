@@ -105,6 +105,26 @@ Format: Layer, Start, End, Style, MarginL, MarginR, MarginV, Effect, Text
     return len(lines)
 
 
+def probe_fps(video):
+    out = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "v:0",
+         "-show_entries", "stream=r_frame_rate", "-of", "csv=p=0", video],
+        capture_output=True, text=True).stdout.strip()
+    try:
+        n, d = out.split("/")
+        return round(int(n) / int(d))
+    except Exception:
+        return 30
+
+
+def probe_duration(video):
+    out = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+         "-of", "default=nw=1:nk=1", video],
+        capture_output=True, text=True).stdout.strip()
+    return float(out or 0)
+
+
 def probe_dims(video):
     out = subprocess.run(
         ["ffprobe", "-v", "error", "-select_streams", "v:0",
@@ -144,9 +164,42 @@ def main():
                           "output": a.output}, indent=2))
         return
 
+    # No libass: render the caption strip ourselves with Pillow and composite it.
+    # This keeps the plugin self-contained — no OpenMontage, no AGPL code.
+    try:
+        from render_captions_png import render_sequence, STRIP_H
+    except ImportError:
+        render_sequence = None
+
+    if render_sequence is not None:
+        import shutil, tempfile
+        w, h = probe_dims(a.input)
+        fps = probe_fps(a.input)
+        dur = probe_duration(a.input)
+        groups = group_words(words)
+        tmp = tempfile.mkdtemp(prefix="caps_")
+        try:
+            frames, uniq = render_sequence(groups, w, h, fps, dur, cfg, tmp)
+            y = round(h * 0.78) - STRIP_H // 2 if h > w else h - STRIP_H - 60
+            subprocess.run(
+                ["ffmpeg", "-v", "error", "-y", "-i", a.input,
+                 "-framerate", str(fps), "-i", f"{tmp}/%06d.png",
+                 "-filter_complex", f"[0:v][1:v]overlay=0:{y}:shortest=1[v]",
+                 "-map", "[v]", "-map", "0:a?",
+                 "-c:v", "libx264", "-preset", "slow", "-crf", "20",
+                 "-pix_fmt", "yuv420p", "-c:a", "copy",
+                 "-movflags", "+faststart", a.output], check=True)
+            print(json.dumps({"method": "pillow", "cues": len(groups),
+                              "words": len(words), "frames": frames,
+                              "unique_states": uniq, "output": a.output},
+                             indent=2))
+            return
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
     om = find_openmontage()
     if not om:
-        sys.exit("no libass and no OpenMontage — run check_env.py for options")
+        sys.exit("cannot render captions — Pillow missing and no OpenMontage")
 
     sys.path.insert(0, str(om))
     from tools.video.remotion_caption_burn import RemotionCaptionBurn  # noqa: E402

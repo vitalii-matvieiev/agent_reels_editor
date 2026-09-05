@@ -16,13 +16,13 @@ rules you must not break.**
 | Detect what this machine can do | `skills/matvieiev-agent_matvieiev-agent_reels-editor/scripts/check_env.py` |
 | Transcribe with word timestamps | `skills/matvieiev-agent_matvieiev-agent_reels-editor/scripts/transcribe.py` |
 | Cut pauses, remap caption timings | `skills/matvieiev-agent_matvieiev-agent_reels-editor/scripts/cut_silence.py` |
-| Burn captions (ASS or Remotion) | `skills/matvieiev-agent_matvieiev-agent_reels-editor/scripts/burn_captions.py` |
+| Burn captions (ASS or Pillow) | `skills/matvieiev-agent_matvieiev-agent_reels-editor/scripts/burn_captions.py` |
 | Place the hook in the safe zone | `skills/matvieiev-agent_matvieiev-agent_reels-editor/scripts/hook_overlay.py` |
 | Measure a reference Reel | `skills/matvieiev-agent_matvieiev-agent_reels-editor/scripts/analyze_reference.py` |
 
 Run `check_env.py` first. It reports whether you are in `light` mode (ffmpeg
-with libass) or `openmontage` mode, and refuses to proceed if something
-essential is missing.
+with libass) or `standalone` mode (captions drawn with Pillow). Both produce
+the same result; nothing extra needs installing either way.
 
 ## Rules you must not break
 
