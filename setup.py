@@ -34,6 +34,7 @@ PY_VERSION = "3.12"
 # OpenMontage має ліцензію AGPLv3, тому ми його не вшиваємо і не поширюємо —
 # людина завантажує його сама, як будь-яку сторонню програму.
 OPENMONTAGE_REPO = "https://github.com/calesthio/OpenMontage.git"
+NODE_INDEX = "https://nodejs.org/dist/index.json"
 PRO_DIR = ROOT / "pro" / "OpenMontage"
 
 
@@ -137,8 +138,22 @@ def find_python310():
     return None
 
 
+def find_uv():
+    """uv may live in vendor/, in ~/.local/bin, or on PATH."""
+    marker = ROOT / ".uv-path"
+    if marker.exists():
+        cand = marker.read_text().strip()
+        if cand and Path(cand).exists():
+            return cand
+    for c in (VENDOR / "uv", Path.home() / ".local/bin/uv",
+              Path.home() / ".cargo/bin/uv"):
+        if c.exists():
+            return str(c)
+    return shutil.which("uv")
+
+
 def ensure_uv():
-    uv = which("uv") or shutil.which("uv")
+    uv = find_uv()
     if uv:
         return uv
     work("ставлю uv — менеджер, який принесе потрібний Python…")
@@ -146,10 +161,10 @@ def ensure_uv():
     env = dict(os.environ, UV_INSTALL_DIR=str(VENDOR), UV_NO_MODIFY_PATH="1")
     subprocess.run(["sh", "-c", script], env=env, check=True,
                    capture_output=True, text=True)
-    for c in (VENDOR / "uv", Path.home() / ".local/bin/uv", Path.home() / ".cargo/bin/uv"):
-        if c.exists():
-            return str(c)
-    return shutil.which("uv")
+    found = find_uv()
+    if found:
+        (ROOT / ".uv-path").write_text(found, encoding="utf-8")
+    return found
 
 
 def ensure_venv():
@@ -194,11 +209,7 @@ def ensure_packages(py):
     except subprocess.CalledProcessError:
         pass
 
-    uv = None
-    marker = ROOT / ".uv-path"
-    if marker.exists():
-        uv = marker.read_text().strip()
-    uv = uv if uv and Path(uv).exists() else (shutil.which("uv") or ensure_uv())
+    uv = find_uv() or ensure_uv()
     if not uv:
         raise RuntimeError("немає ні pip, ні uv — не можу поставити пакети")
     run([uv, "pip", "install", "--python", py, *need])
@@ -206,13 +217,55 @@ def ensure_packages(py):
 
 # ---------------------------------------------------------------- pro mode
 
+def ensure_node():
+    """Node for Remotion. Official tarball into vendor/ — no brew, no password."""
+    local = VENDOR / "node" / "bin"
+    if (local / "npm").exists():
+        return str(local)
+    if shutil.which("npm"):
+        return None                      # системний підходить
+
+    if platform.system() != "Darwin":
+        raise RuntimeError("автоматична установка Node зроблена для macOS — "
+                           "постав його з nodejs.org")
+
+    arch = "arm64" if platform.machine() == "arm64" else "x64"
+    index = json.loads(http_get(NODE_INDEX, 60))
+    rel = next(r for r in index if r.get("lts"))
+    ver = rel["version"]
+    name = f"node-{ver}-darwin-{arch}"
+    url = f"https://nodejs.org/dist/{ver}/{name}.tar.gz"
+
+    work(f"ставлю Node {ver} (~50 МБ, у папку плагіна)…")
+    VENDOR.mkdir(exist_ok=True)
+    tgz = VENDOR / "node.tar.gz"
+    http_download(url, tgz, timeout=600)
+
+    import tarfile
+    with tarfile.open(tgz) as t:
+        t.extractall(VENDOR)
+    tgz.unlink()
+
+    extracted = VENDOR / name
+    target = VENDOR / "node"
+    if target.exists():
+        shutil.rmtree(target)
+    extracted.rename(target)
+
+    subprocess.run(["xattr", "-dr", "com.apple.quarantine", str(target)],
+                   capture_output=True)
+    return str(target / "bin")
+
+
 def install_pro():
     """Downloads OpenMontage — optional, unlocks AI generation via paid APIs."""
     if not shutil.which("git"):
         return False, "потрібен git — постав Xcode Command Line Tools"
-    if not shutil.which("npm"):
-        return False, ("потрібен Node.js — завантаж з nodejs.org "
-                       "(без нього не працює композиція Remotion)")
+
+    node_bin = ensure_node()
+    env = dict(os.environ)
+    if node_bin:
+        env["PATH"] = node_bin + os.pathsep + env.get("PATH", "")
 
     PRO_DIR.parent.mkdir(parents=True, exist_ok=True)
 
@@ -226,8 +279,7 @@ def install_pro():
     if not (om_venv / "bin" / "python").exists():
         work("створюю оточення для OpenMontage…")
         base = find_python310() or ensure_venv()
-        uv = shutil.which("uv") or (ROOT / ".uv-path").read_text().strip() \
-            if (ROOT / ".uv-path").exists() else shutil.which("uv")
+        uv = find_uv()
         if uv:
             run([uv, "venv", "--python", PY_VERSION, str(om_venv)])
         else:
@@ -239,14 +291,16 @@ def install_pro():
         run([om_py, "-m", "pip", "install", "--quiet", "-r",
              str(PRO_DIR / "requirements.txt")])
     except subprocess.CalledProcessError:
-        uv = shutil.which("uv")
+        uv = find_uv() or ensure_uv()
         if not uv:
             return False, "не вдалось поставити залежності OpenMontage"
         run([uv, "pip", "install", "--python", om_py, "-r",
              str(PRO_DIR / "requirements.txt")])
 
     work("ставлю Remotion (~580 МБ, це найдовше)…")
-    run(["npm", "install", "--silent"], cwd=str(PRO_DIR / "remotion-composer"))
+    npm = str(Path(node_bin) / "npm") if node_bin else "npm"
+    run([npm, "install", "--silent"],
+        cwd=str(PRO_DIR / "remotion-composer"), env=env)
 
     env_file = PRO_DIR / ".env"
     if not env_file.exists() and (PRO_DIR / ".env.example").exists():
