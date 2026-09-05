@@ -1,10 +1,13 @@
-import json, subprocess, sys
-
+import json
+import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _tools  # noqa: E402
 from _tools import FFMPEG, FFPROBE  # noqa: E402
+
+_tools.reexec_in_venv()
 
 
 SRC = sys.argv[1] if len(sys.argv) > 1 else "base_1080.mp4"
@@ -20,7 +23,11 @@ LEAD_IN  = 0.15   # перед першим словом
 TAIL_OUT = 0.45   # після останнього
 
 d = json.load(open(TRANSCRIPT))
-W = [w for s in d["segments"] for w in s["words"]]
+W = [w for s in d.get("segments", []) for w in s.get("words", [])]
+if not W:
+    sys.exit("У транскрипті немає слів — різати нема по чому.\n"
+             "Схоже, у відео не розпізналась мова: перевір, чи чути голос,\n"
+             "і перезапусти розшифровку.")
 
 cuts = []
 if W[0]["start"] - LEAD_IN > 0:
@@ -62,8 +69,9 @@ for s in d["segments"]:
     if ws:
         segs.append({"start": ws[0]["start"], "end": ws[-1]["end"],
                      "text": s["text"], "words": ws})
-json.dump({"language": d["language"], "duration": newdur, "segments": segs},
-          open("transcript_tight.json", "w"), ensure_ascii=False, indent=2)
+TIGHT = str(Path(OUT).resolve().parent / "transcript_tight.json")
+json.dump({"language": d.get("language"), "duration": newdur, "segments": segs},
+          open(TIGHT, "w"), ensure_ascii=False, indent=2)
 
 # ---- ffmpeg: trim + concat ----
 parts = []
@@ -79,3 +87,4 @@ cmd = [FFMPEG, "-v", "error", "-y", "-i", SRC, "-filter_complex", fc,
        "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart", OUT]
 subprocess.run(cmd, check=True)
 print(f"✅ {OUT}")
+print(f"   субтитри з новими таймкодами: {TIGHT}")

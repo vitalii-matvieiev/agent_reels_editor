@@ -118,7 +118,7 @@ python3 setup.py     # ffmpeg, Python, залежності
 вручну:
 
 ```bash
-python transcribe.py audio.wav transcript.json --model medium
+python3 scripts/transcribe.py video.mp4 transcript.json --model medium
 ```
 
 Агент ніколи не знизить точність мовчки — тільки після твого слова.

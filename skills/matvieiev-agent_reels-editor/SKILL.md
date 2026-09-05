@@ -69,8 +69,8 @@ faster when choosing.
 > Кинь посилання або файл рілса, який ти вже публікував і яким задоволений.
 > Я розберу його на параметри: темп, розмір субтитрів, де стоїть текст.
 
-If they give one, analyze it with `scripts/analyze_reference.py` and store what
-you measure. A reference beats any verbal description.
+If they give one, analyze it with `"$PY" scripts/analyze_reference.py` and
+store what you measure. A reference beats any verbal description.
 
 **Ask about goals — offer options, do not leave it open:**
 
@@ -79,21 +79,34 @@ you measure. A reference beats any verbal description.
 - Анонс події (дата й час у кадрі, чіткий CTA)
 - Продаж / заявка (проблема → рішення → CTA)
 
-Write everything to `profiles/user.json` using the schema in
-`profiles/example.json`. Tell the user the profile is saved and they will not
+Write everything to `profiles/user.json` — in the folder you are working in,
+next to the video — using the schema in `profiles-example.json`. Tell the user the profile is saved and they will not
 be asked again.
 
 ---
 
 ## Stage 1 — Intake
 
-When a video arrives:
+When a video arrives, first find out what you are working with:
 
 ```bash
-python scripts/check_env.py
+python3 scripts/check_env.py
 ```
 
-This reports which mode you are in. **Say the mode out loud** — the user must
+**Take the `python` field from its output and use that interpreter for every
+other script in this folder.** The plugin installs faster-whisper and Pillow
+into its own environment — the system `python3` does not have them, and on a
+fresh Mac plain `python` does not exist at all.
+
+```bash
+PY=$(python3 scripts/check_env.py | awk '/^PYTHON:/{print $2}')
+```
+
+Every command below assumes `$PY`. If `check_env.py` exits with `blocked`, run
+`python3 setup.py` in the plugin folder first — its path is the `plugin_root`
+field of the same report.
+
+The report also reports which mode you are in. **Say the mode out loud** — the user must
 know what they are getting:
 
 | Mode | Requires | Captions via |
@@ -132,8 +145,10 @@ prevent it getting worse, but you cannot undo it.
 ## Stage 2 — Transcribe
 
 ```bash
-python scripts/transcribe.py "$AUDIO" transcript.json --language auto
+"$PY" scripts/transcribe.py "$VIDEO" transcript.json --language auto
 ```
+
+It takes the video directly — no need to extract audio first.
 
 Word-level timestamps are not optional — every later stage depends on them.
 
@@ -175,7 +190,7 @@ never wrong twice.
 ## Stage 3 — Cut the dead air
 
 ```bash
-python scripts/cut_silence.py "$INPUT" tight.mp4 transcript.json
+"$PY" scripts/cut_silence.py "$INPUT" tight.mp4 transcript.json
 ```
 
 Cuts by word timestamps, not by listening. The seam lands in the middle of each
@@ -208,8 +223,12 @@ The short version, measured from a real iPhone profile grid:
 Burn captions:
 
 ```bash
-python scripts/burn_captions.py tight.mp4 captioned.mp4 transcript_tight.json
+"$PY" scripts/burn_captions.py tight.mp4 captioned.mp4 transcript_tight.json
 ```
+
+`cut_silence.py` writes `transcript_tight.json` next to its output file — feed
+that one, never the original `transcript.json`. The profile is picked up on its
+own from `profiles/user.json`; pass `--profile` only to override.
 
 Three words per screen, active word in the accent color. More than four words
 is unreadable on a phone.
@@ -225,7 +244,19 @@ A hook must be a **claim, not a label**:
 - ✅ "Монтаж коштував $10. Агент робить за 3 хвилини" — a claim you can disagree with
 
 ```bash
-python scripts/hook_overlay.py captioned.mp4 hooked.mp4 --text "..." 
+"$PY" scripts/hook_overlay.py captioned.mp4 hooked.mp4 "РЯДОК|ЩЕ РЯДОК" --accent-last
+```
+
+Lines are separated by `|`. The script shrinks the type by itself when a line
+is too wide, and only refuses when even the smallest size will not fit.
+
+If the source is not 9:16 it stops rather than squashing faces, and asks for a
+decision — pass it on to the user before choosing:
+
+```bash
+--fit crop   # обрізати боки — частина кадру зникне
+--fit pad    # вписати цілком, чорні поля
+--fit blur   # вписати цілком, розмитий кадр замість полів
 ```
 
 The script refuses to run if the text leaves the safe zone, and writes
@@ -308,8 +339,10 @@ Bring the history up unprompted when it is relevant: "минулого разу 
 1. **Never publish.** You edit and hand over the file. Posting is the user's.
 2. **Never render the final without showing a preview first.**
 3. **Never invent facts about the user** — dates, names, numbers, prices. Ask.
-4. **Never place text outside the safe zone**, even if asked; explain what the
-   grid will crop, show the preview, and let them decide.
+4. **Never place the hook outside the safe zone**, even if asked; explain what
+   the grid will crop, show the preview, and let them decide. Captions are the
+   one exception: they sit lower on purpose — the grid tile shows the cover,
+   not the caption line, so only player visibility matters for them.
 5. **Always verify audio** before handing over. Clipped audio is a defect.
 6. **Always report what you removed** in seconds, so cuts stay auditable.
 

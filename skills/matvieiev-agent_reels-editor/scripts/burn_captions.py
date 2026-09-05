@@ -14,14 +14,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
-from check_env import ffmpeg_filters, find_openmontage  # noqa: E402
-
-import sys
-from pathlib import Path
-
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _tools  # noqa: E402
 from _tools import FFMPEG, FFPROBE  # noqa: E402
+
+_tools.reexec_in_venv()
+
+from check_env import ffmpeg_filters, find_openmontage  # noqa: E402
 
 
 WORDS_PER_PAGE = 3
@@ -29,6 +28,7 @@ DEFAULTS = {"accent": "#FFC93C", "text": "#FFFFFF", "font": "Arial Black", "font
 
 
 def load_profile(path):
+    path = path or _tools.profile_path()
     cfg = dict(DEFAULTS)
     if path and Path(path).exists():
         p = json.load(open(path))
@@ -101,8 +101,13 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     active, idle = f"{{\\c{hex_to_ass(cfg['accent'])}}}", f"{{\\c{hex_to_ass(cfg['text'])}}}"
     lines = []
-    for g in group_words(words):
+    groups = group_words(words)
+    for gi, g in enumerate(groups):
+        # Hold the last word a moment longer — but never into the next group,
+        # or libass stacks two captions on top of each other.
         gend = g[-1]["end"] + 0.12
+        if gi + 1 < len(groups):
+            gend = min(gend, groups[gi + 1][0]["start"] - 0.01)
         for i, _ in enumerate(g):
             st = g[i]["start"]
             en = g[i + 1]["start"] if i + 1 < len(g) else gend
@@ -150,7 +155,12 @@ def main():
     a = ap.parse_args()
 
     cfg = load_profile(a.profile)
-    d = json.load(open(a.transcript))
+    for f in (a.input, a.transcript):
+        if not Path(f).exists():
+            sys.exit(f"файлу немає: {f}\n"
+                     "Субтитрам потрібне порізане відео і transcript_tight.json,\n"
+                     "який лишає після себе cut_silence.py.")
+    d = json.load(open(a.transcript, encoding="utf-8"))
     words = [{"word": apply_corrections(w["word"].strip(), cfg["corrections"]),
               "start": w["start"], "end": w["end"]}
              for s in d["segments"] for w in s["words"] if w["word"].strip()]

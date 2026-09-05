@@ -33,7 +33,9 @@ install_to() {
   ( cd "$SRC/skills/matvieiev-agent_reels-editor" && \
     find . -type d -name __pycache__ -prune -o -type f -print0 \
     | tar --null -cf - -T - ) | ( cd "$dest" && tar -xf - )
-  mkdir -p "$dest/../../profiles" 2>/dev/null || true
+  # The installed copy has no setup.py above it — leave a pointer back to the
+  # plugin folder so the scripts still find vendor/, .venv/ and config.json.
+  printf '%s\n' "$SRC" > "$dest/.plugin-root"
   cp -n "$SRC/profiles/example.json" "$dest/profiles-example.json" 2>/dev/null || true
   ok "$platform → $dest"
 }

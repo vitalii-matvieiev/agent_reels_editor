@@ -11,10 +11,17 @@ minutes. The script prints an estimate before starting; pass that estimate on
 to the user and offer the faster models.
 """
 import argparse
+import gc
 import json
 import subprocess
 import sys
 import time
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _tools  # noqa: E402
+
+_tools.reexec_in_venv()
 
 MODELS = {
     # name:      (speed vs large-v3, what you give up)
@@ -28,12 +35,24 @@ MODELS = {
 def audio_duration(path):
     try:
         out = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+            [_tools.FFPROBE, "-v", "error", "-show_entries", "format=duration",
              "-of", "default=nw=1:nk=1", path],
             capture_output=True, text=True, timeout=30).stdout.strip()
         return float(out)
     except Exception:
         return None
+
+
+def has_audio(path):
+    """A video with no sound crashes deep inside the decoder — catch it here."""
+    try:
+        out = subprocess.run(
+            [_tools.FFPROBE, "-v", "error", "-select_streams", "a",
+             "-show_entries", "stream=codec_type", "-of", "csv=p=0", path],
+            capture_output=True, text=True, timeout=30).stdout.strip()
+        return "audio" in out
+    except Exception:
+        return True          # can't tell — let the real run decide
 
 
 def main():
@@ -45,6 +64,12 @@ def main():
                     help="ISO code (uk, en, pl…) or 'auto' to detect")
     ap.add_argument("--device", default="cpu")
     a = ap.parse_args()
+
+    if not Path(a.audio).exists():
+        sys.exit(f"файлу немає: {a.audio}")
+    if not has_audio(a.audio):
+        sys.exit("У цьому файлі немає звукової доріжки — розшифровувати нічого.\n"
+                 "Перевір, чи те відео ти дав, або чи не знявся звук при експорті.")
 
     dur = audio_duration(a.audio)
     speed, tradeoff = MODELS[a.model]
@@ -95,6 +120,11 @@ def main():
 
     if not out:
         sys.exit("мови не розпізнано — перевір, чи є звук у файлі")
+
+    # Відпускаємо модель явно: інакше ctranslate2 інколи падає в деструкторі
+    # вже після роботи й лякає людину червоним рядком у терміналі.
+    del segments, model
+    gc.collect()
 
 
 if __name__ == "__main__":

@@ -138,6 +138,14 @@ def find_python310():
     return None
 
 
+def uv_env():
+    """Keep uv's Python inside the plugin folder — the README promises that
+    deleting the folder leaves nothing behind, and uv's default is ~/.local."""
+    return dict(os.environ,
+                UV_PYTHON_INSTALL_DIR=str(VENDOR / "python"),
+                UV_NO_MODIFY_PATH="1")
+
+
 def find_uv():
     """uv may live in vendor/, in ~/.local/bin, or on PATH."""
     marker = ROOT / ".uv-path"
@@ -183,8 +191,9 @@ def ensure_venv():
     if not uv:
         raise RuntimeError("не вдалось поставити uv — потрібен Python 3.10 або новіший")
     work(f"ставлю Python {PY_VERSION} (у папку плагіна, систему не чіпає)…")
-    run([uv, "python", "install", PY_VERSION])
-    run([uv, "venv", "--python", PY_VERSION, str(VENV)])
+    env = uv_env()
+    run([uv, "python", "install", PY_VERSION], env=env)
+    run([uv, "venv", "--python", PY_VERSION, str(VENV)], env=env)
     (ROOT / ".uv-path").write_text(uv, encoding="utf-8")
     return str(py)
 
@@ -281,7 +290,7 @@ def install_pro():
         base = find_python310() or ensure_venv()
         uv = find_uv()
         if uv:
-            run([uv, "venv", "--python", PY_VERSION, str(om_venv)])
+            run([uv, "venv", "--python", PY_VERSION, str(om_venv)], env=uv_env())
         else:
             run([base, "-m", "venv", str(om_venv)])
 

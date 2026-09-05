@@ -1,15 +1,16 @@
-__pycache__/
-*.pyc
-profiles/user.json
-*.mp4
-*.mov
-*.wav
-*.ass
-.DS_Store
 
 # Створюється при встановленні
-.venv/
-vendor/
-config.json
+*.ass
+*.mov
+*.mp4
+*.pyc
+*.wav
+.DS_Store
+.plugin-root
 .uv-path
+.venv/
+__pycache__/
+config.json
 pro/
+profiles/user.json
+vendor/

@@ -1,52 +1,29 @@
 #!/usr/bin/env python3
 """Reports what this machine can actually do, and picks a captioning mode.
 
-Run this before editing anything. Modes:
-    light        ffmpeg with libass + faster-whisper — everything local, no extras
-    openmontage  OpenMontage present — captions render through Remotion
+Run this before editing anything — with plain `python3`; it switches itself to
+the plugin's own interpreter when there is one. Modes:
+    light        ffmpeg with libass — captions burned as ASS subtitles
+    standalone   no libass — captions drawn by Pillow, composited by ffmpeg
     blocked      something essential is missing; the report says what
+
+The `python` field in the report is the interpreter every other script in this
+folder should be run with.
 """
 import json
-import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _tools  # noqa: E402
 
-def plugin_config():
-    """setup.py writes config.json with resolved paths — prefer them."""
-    here = Path(__file__).resolve()
-    for parent in here.parents:
-        cfg = parent / "config.json"
-        if cfg.exists():
-            try:
-                return json.loads(cfg.read_text()), parent
-            except Exception:
-                pass
-        if (parent / "setup.py").exists():
-            break
-    return {}, None
-
-
-CONFIG, PLUGIN_ROOT = plugin_config()
+_tools.reexec_in_venv()
 
 
 def has_binary(name):
-    if CONFIG.get(name):
-        return True
-    if PLUGIN_ROOT and (PLUGIN_ROOT / "vendor" / name).exists():
-        return True
-    return shutil.which(name) is not None
-
-
-def binary(name):
-    """Full path to a tool — vendor copy first, then config, then PATH."""
-    if PLUGIN_ROOT:
-        local = PLUGIN_ROOT / "vendor" / name
-        if local.exists():
-            return str(local)
-    return CONFIG.get(name) or shutil.which(name) or name
+    path = _tools.binary(name)
+    return "/" in path and Path(path).exists()
 
 
 def ffmpeg_filters():
@@ -54,7 +31,7 @@ def ffmpeg_filters():
     if not has_binary("ffmpeg"):
         return set()
     try:
-        out = subprocess.run([binary("ffmpeg"), "-hide_banner", "-filters"],
+        out = subprocess.run([_tools.FFMPEG, "-hide_banner", "-filters"],
                              capture_output=True, text=True, timeout=30).stdout
     except Exception:
         return set()
@@ -75,6 +52,9 @@ def python_module(mod):
 
 
 def find_openmontage():
+    if _tools.ROOT and (_tools.ROOT / "pro" / "OpenMontage" /
+                        "remotion-composer" / "node_modules").is_dir():
+        return _tools.ROOT / "pro" / "OpenMontage"
     for p in [Path.home() / "Projects/OpenMontage",
               Path.home() / "OpenMontage",
               Path.cwd() / "OpenMontage"]:
@@ -88,22 +68,29 @@ def main():
     om = find_openmontage()
 
     report = {
+        "plugin_root": str(_tools.ROOT) if _tools.ROOT else None,
+        "python": _tools.python_path() or sys.executable,
         "ffmpeg": has_binary("ffmpeg"),
         "ffprobe": has_binary("ffprobe"),
+        "ffmpeg_path": _tools.FFMPEG,
         "ffmpeg_libass": "ass" in filters or "subtitles" in filters,
         "ffmpeg_drawtext": "drawtext" in filters,
         "faster_whisper": python_module("faster_whisper"),
         "pillow": python_module("PIL"),
+        "profile": _tools.profile_path(),
         "openmontage_path": str(om) if om else None,
     }
 
+    fix = "запусти в папці плагіна:  python3 setup.py"
     problems = []
     if not report["ffmpeg"] or not report["ffprobe"]:
-        problems.append("ffmpeg/ffprobe not found — brew install ffmpeg")
+        problems.append(f"немає ffmpeg/ffprobe — {fix}")
     if not report["faster_whisper"]:
-        problems.append("faster-whisper not installed — pip install faster-whisper")
+        problems.append(f"немає faster-whisper — {fix}")
     if not report["pillow"]:
-        problems.append("Pillow not installed — pip install Pillow")
+        problems.append(f"немає Pillow — {fix}")
+    if problems and not report["plugin_root"]:
+        problems.append("не знайшов папку плагіна — перевстанови через ./install.sh")
 
     if problems:
         mode = "blocked"
@@ -117,15 +104,15 @@ def main():
     report["mode"] = mode
     report["problems"] = problems
 
-    print(json.dumps(report, indent=2))
+    print(json.dumps(report, indent=2, ensure_ascii=False))
     print()
+    print(f"PYTHON: {report['python']}")
+    print("        Запускай усі інші скрипти саме ним.")
     if mode == "light":
         print("MODE: light — ffmpeg burns ASS subtitles. Nothing else needed.")
     elif mode == "standalone":
         print("MODE: standalone — this ffmpeg has no libass, so captions render")
         print("      through Pillow instead. Works the same; nothing to install.")
-        if om:
-            print(f"      (OpenMontage also found at {om}, but not required.)")
     else:
         print("MODE: blocked — fix these before editing:")
         for p in problems:
